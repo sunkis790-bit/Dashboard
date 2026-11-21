@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>주간 대시보드</title>
+<meta name="description" content="메일 정리와 리뷰 작업 진행을 한눈에 보는 주간 대시보드">
+<meta name="theme-color" content="#6a4cb0">
+<meta name="color-scheme" content="light">
+<meta name="robots" content="noindex">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="대시보드">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="stylesheet" href="styles.css?v=4">
+</head>
+<body class="locked">
+
+<!-- 잠금 화면: 비밀번호를 넣기 전에는 이것만 보입니다 -->
+<section class="lock" id="lock" aria-label="잠금 화면">
+  <div class="lock-card">
+    <div class="lock-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="4.5" y="10.5" width="15" height="10" rx="3"/>
+        <path d="M8 10.5V7.6a4 4 0 0 1 8 0v2.9"/>
+        <circle cx="12" cy="15.5" r="1.2" fill="currentColor" stroke="none"/>
+      </svg>
+    </div>
+    <h2 class="lock-title">주간 대시보드</h2>
+    <p class="lock-sub">비밀번호를 입력하면 열립니다</p>
+
+    <form id="lock-form" autocomplete="off" novalidate>
+      <label class="sr-only" for="pw">비밀번호</label>
+      <div class="pw-field">
+        <input id="pw" name="pw" type="password" inputmode="text" autocomplete="current-password"
+               autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go"
+               placeholder="비밀번호" aria-describedby="pw-error">
+        <button class="pw-eye" id="pw-eye" type="button" aria-label="비밀번호 보기">
+          <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2.2 12S5.8 5.8 12 5.8 21.8 12 21.8 12 18.2 18.2 12 18.2 2.2 12 2.2 12Z"/>
+            <circle cx="12" cy="12" r="2.9"/>
+          </svg>
+        </button>
+      </div>
+      <p class="pw-error" id="pw-error" role="alert" aria-live="polite"></p>
+      <button class="pw-go" id="pw-go" type="submit">열기</button>
+    </form>
+
+    <p class="lock-note">이 기기에서 한 번 열면 탭을 닫을 때까지 유지됩니다.</p>
+  </div>
+</section>
+
+<!-- 대시보드 본문: 잠금이 풀린 뒤에만 보입니다 -->
+<div class="app-shell" id="app" hidden>
+
+  <header class="appbar">
+    <div class="appbar-in">
+      <div class="brand">
+        <span class="logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="18" height="18"><rect x="3" y="12" width="4" height="9" rx="1.6" fill="currentColor"/><rect x="10" y="7" width="4" height="14" rx="1.6" fill="currentColor" opacity=".85"/><rect x="17" y="3" width="4" height="18" rx="1.6" fill="currentColor"/></svg>
+        </span>
+        <div>
+          <h1>주간 대시보드</h1>
+          <p class="stamp" id="stamp"></p>
+        </div>
+      </div>
+      <div class="appbar-actions">
+        <button class="install" id="installBtn" hidden type="button">홈 화면에 추가</button>
+        <button class="lockbtn" id="lockBtn" type="button" aria-label="잠그기" title="잠그기">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="5" y="10.5" width="14" height="9.5" rx="2.8"/>
+            <path d="M8.4 10.5V8a3.6 3.6 0 0 1 7.2 0v2.5"/>
+          </svg>
+          <span>잠금</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+
+    <section class="view" id="view-summary" role="tabpanel" aria-labelledby="tab-summary">
+      <div class="kpis" id="kpis"></div>
+
+      <article class="card">
+        <h2>받은메일함 안 읽음 <span>정리 전 → 정리 후</span></h2>
+        <div class="bars">
+          <div class="bar">
+            <div class="track"><div class="fill before" id="b1"><span id="b1n">0통</span></div></div>
+            <div class="lbl">정리 전</div>
+          </div>
+          <div class="bar">
+            <div class="track"><div class="fill now" id="b2"><span id="b2n">0통</span></div></div>
+            <div class="lbl">정리 후</div>
+          </div>
+        </div>
+        <p class="hint" id="dropHint"></p>
+      </article>
+
+      <article class="card">
+        <h2>이번 주 요약</h2>
+        <ul class="notes" id="notes"></ul>
+      </article>
+    </section>
+
+    <section class="view hide" id="view-mail" role="tabpanel" aria-labelledby="tab-mail">
+      <article class="card">
+        <h2>안 읽던 메일의 성격 <span id="pie-total"></span></h2>
+        <div class="donutbox">
+          <svg viewBox="0 0 42 42" id="donut" class="donut" role="img" aria-label="메일 성격별 비중">
+            <circle cx="21" cy="21" r="15.915" fill="none" stroke="#f1ecfa" stroke-width="6.5"></circle>
+          </svg>
+          <div class="legend" id="legend"></div>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>정리한 메일 <span id="cleaned-total"></span></h2>
+        <ul class="bars-list" id="cleaned"></ul>
+        <p class="hint">삭제한 메일은 휴지통에서 되돌릴 수 있어요.</p>
+      </article>
+    </section>
+
+    <section class="view hide" id="view-todo" role="tabpanel" aria-labelledby="tab-todo">
+      <article class="card">
+        <h2>남은 일 <span id="todo-progress"></span></h2>
+        <div class="progress"><div class="progress-fill" id="todoBar"></div></div>
+        <ul class="tasks" id="tasks"></ul>
+        <p class="hint">체크한 상태는 이 기기에 저장돼요.</p>
+      </article>
+
+      <article class="card">
+        <h2>일정</h2>
+        <div class="empty">캘린더가 연결되지 않아 이번 주 일정은 비어 있어요. 연결하면 이 자리에 채워집니다.</div>
+      </article>
+    </section>
+
+    <p class="foot" id="foot"></p>
+  </main>
+
+  <nav class="tabbar" role="tablist" aria-label="화면 이동">
+    <button class="tab on" id="tab-summary" role="tab" aria-selected="true" aria-controls="view-summary" data-v="summary">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="2.2"/><rect x="13" y="3" width="8" height="8" rx="2.2"/><rect x="3" y="13" width="8" height="8" rx="2.2"/><rect x="13" y="13" width="8" height="8" rx="2.2"/></svg>
+      <span>요약</span>
+    </button>
+    <button class="tab" id="tab-mail" role="tab" aria-selected="false" aria-controls="view-mail" data-v="mail">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="5" width="19" height="14" rx="3"/><path d="M4 7.5l8 5.5 8-5.5"/></svg>
+      <span>메일</span>
+    </button>
+    <button class="tab" id="tab-todo" role="tab" aria-selected="false" aria-controls="view-todo" data-v="todo">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M7.5 12.5l3 3 6-6.5"/></svg>
+      <span>할 일</span>
+    </button>
+  </nav>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</div>
+
+<script src="app.js?v=4"></script>
+</body>
+</html>
