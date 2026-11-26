@@ -15,7 +15,7 @@
 <meta name="apple-mobile-web-app-title" content="대시보드">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="mobile-web-app-capable" content="yes">
-<link rel="stylesheet" href="styles.css?v=4">
+<link rel="stylesheet" href="styles.css?v=5">
 </head>
 <body class="locked">
 
@@ -138,6 +138,85 @@
       </article>
     </section>
 
+    <!-- 가계부 -->
+    <section class="view hide" id="view-ledger" role="tabpanel" aria-labelledby="tab-ledger">
+
+      <!-- 연결 전: 안내 + 설정 폼 -->
+      <article class="card" id="ledger-setup">
+        <h2>가계부 연결 <span>Supabase</span></h2>
+        <p class="setup-lead">
+          가계부 내역은 Supabase의 <b>ledger_entries</b> 표에 저장됩니다. 접속 정보는 이 기기 브라우저에만 저장되고,
+          공개 저장소에는 올라가지 않습니다.
+        </p>
+        <form id="setup-form" class="cfg" autocomplete="off" novalidate>
+          <label class="fld"><span>프로젝트 URL</span>
+            <input id="setup-url" type="url" inputmode="url" placeholder="https://xxxx.supabase.co"
+                   autocapitalize="off" autocorrect="off" spellcheck="false">
+          </label>
+          <label class="fld"><span>Publishable key</span>
+            <input id="setup-key" type="password" inputmode="text" placeholder="sb_publishable_…"
+                   autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+          </label>
+          <p class="cfg-err" id="setup-err" role="alert"></p>
+          <button class="btn primary" type="submit">연결하기</button>
+        </form>
+        <p class="hint">
+          연결 링크(<b>#sb=…</b>)로 열면 자동으로 채워집니다. 연결한 뒤에는 오른쪽 위 <b>연결 설정</b>에서 바꾸거나 해제할 수 있어요.
+        </p>
+      </article>
+
+      <!-- 연결 후 -->
+      <div id="ledger-body" class="hide">
+
+        <div class="lg-head">
+          <div class="month-nav">
+            <button class="icon-btn" id="month-prev" type="button" aria-label="이전 달">‹</button>
+            <input class="month" id="month" type="month" aria-label="기준 월">
+            <button class="icon-btn" id="month-next" type="button" aria-label="다음 달">›</button>
+          </div>
+          <button class="mini" id="cfg-open" type="button">연결 설정</button>
+        </div>
+
+        <button class="btn primary add-wide" id="entry-add-top" type="button">＋ 내역 추가</button>
+
+        <div class="kpis kpis-3" id="lg-summary"></div>
+
+        <article class="card">
+          <h2>카테고리별 지출 <span id="lg-cat-total"></span></h2>
+          <div id="lg-cat-wrap"></div>
+        </article>
+
+        <article class="card">
+          <h2>내역 <span id="lg-count"></span></h2>
+
+          <div class="filters">
+            <div class="seg" id="type-filter" role="group" aria-label="구분 필터">
+              <button type="button" data-type="all" class="on">전체</button>
+              <button type="button" data-type="expense">지출</button>
+              <button type="button" data-type="income">수입</button>
+            </div>
+            <select class="sel" id="cat-filter" aria-label="분류 필터">
+              <option value="">분류 전체</option>
+            </select>
+            <input class="search" id="lg-search" type="search" placeholder="제목·메모 검색" aria-label="제목·메모 검색">
+          </div>
+
+          <div class="lg-tools">
+            <span class="lg-range" id="lg-range"></span>
+            <button class="mini" id="sort-toggle" type="button">최신순 ↓</button>
+          </div>
+
+          <ul class="lg-list" id="lg-list"></ul>
+        </article>
+
+        <p class="hint">
+          가계부 내역은 이 기기의 암호화된 화면이 아니라 Supabase에 저장됩니다. 연결을 해제해도 서버의 내역은 그대로 남습니다.
+        </p>
+      </div>
+
+      <button class="fab" id="entry-add" type="button" aria-label="내역 추가">＋</button>
+    </section>
+
     <p class="foot" id="foot"></p>
   </main>
 
@@ -154,11 +233,101 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M7.5 12.5l3 3 6-6.5"/></svg>
       <span>할 일</span>
     </button>
+    <button class="tab" id="tab-ledger" role="tab" aria-selected="false" aria-controls="view-ledger" data-v="ledger">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.8 7.6h13.4a3 3 0 0 1 3 3v6.2a2.8 2.8 0 0 1-2.8 2.8H6.6a2.8 2.8 0 0 1-2.8-2.8z"/><path d="M3.8 7.6V6.4a2 2 0 0 1 2-2h9.4"/><circle cx="16.6" cy="13.8" r="1.15" fill="currentColor" stroke="none"/></svg>
+      <span>가계부</span>
+    </button>
   </nav>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <!-- 내역 입력·수정 -->
+  <div class="modal hide" id="entry-modal" role="dialog" aria-modal="true" aria-labelledby="entry-title">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2 id="entry-title">내역 추가</h2>
+        <button class="icon-btn" id="entry-close" type="button" aria-label="닫기">✕</button>
+      </div>
+      <form id="entry-form" autocomplete="off" novalidate>
+        <div class="seg seg-type" id="entry-type" role="group" aria-label="지출/수입">
+          <button type="button" data-type="expense" class="on">지출</button>
+          <button type="button" data-type="income">수입</button>
+        </div>
+
+        <label class="fld amount"><span>금액</span>
+          <div class="amount-box">
+            <input id="entry-amount" type="text" inputmode="numeric" placeholder="0" enterkeyhint="next" aria-label="금액">
+            <span class="unit">원</span>
+          </div>
+        </label>
+
+        <label class="fld"><span>날짜</span><input id="entry-date" type="date"></label>
+
+        <div class="fld">
+          <span class="fld-label">분류</span>
+          <div class="chips" id="cat-chips" role="group" aria-label="자주 쓰는 분류"></div>
+          <input id="entry-category" list="cat-list" placeholder="분류 (직접 입력 가능)" aria-label="분류">
+        </div>
+
+        <label class="fld"><span>내용</span>
+          <input id="entry-name" placeholder="점심 김치찌개">
+        </label>
+
+        <div class="fld">
+          <span class="fld-label">결제수단</span>
+          <div class="chips" id="pay-chips" role="group" aria-label="결제수단"></div>
+          <input id="entry-pay" list="pay-list" placeholder="결제수단 (직접 입력 가능)" aria-label="결제수단">
+        </div>
+
+        <label class="fld"><span>메모 <em>선택</em></span>
+          <input id="entry-memo" placeholder="메모">
+        </label>
+
+        <p class="cfg-err" id="entry-err" role="alert"></p>
+
+        <div class="modal-actions sticky" id="entry-actions">
+          <button class="btn ghost danger hide" id="entry-del" type="button">삭제</button>
+          <button class="btn primary" id="entry-save" type="submit">저장</button>
+        </div>
+        <div class="modal-actions sticky hide" id="entry-confirm">
+          <button class="btn ghost" id="confirm-no" type="button">취소</button>
+          <button class="btn danger" id="confirm-yes" type="button">정말 삭제</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 연결 설정 -->
+  <div class="modal hide" id="cfg-modal" role="dialog" aria-modal="true" aria-labelledby="cfg-title">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2 id="cfg-title">연결 설정</h2>
+        <button class="icon-btn" id="cfg-close" type="button" aria-label="닫기">✕</button>
+      </div>
+      <p class="modal-note" id="cfg-state"></p>
+      <form id="cfg-form" autocomplete="off" novalidate>
+        <label class="fld"><span>프로젝트 URL</span>
+          <input id="cfg-url" type="url" inputmode="url" placeholder="https://xxxx.supabase.co"
+                 autocapitalize="off" autocorrect="off" spellcheck="false">
+        </label>
+        <label class="fld"><span>새 Publishable key <em>바꿀 때만</em></span>
+          <input id="cfg-key" type="password" inputmode="text" placeholder="sb_publishable_…"
+                 autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+        </label>
+        <p class="cfg-err" id="cfg-err" role="alert"></p>
+        <div class="modal-actions">
+          <button class="btn ghost danger" id="cfg-clear" type="button">연결 해제</button>
+          <button class="btn primary" type="submit">저장</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <datalist id="cat-list"></datalist>
+  <datalist id="pay-list"></datalist>
 </div>
 
-<script src="app.js?v=4"></script>
+<script src="ledger-api.js?v=5"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>

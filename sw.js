@@ -1,10 +1,11 @@
 /* 주간 대시보드 오프라인 캐시 */
-const CACHE = "weekly-dashboard-v4";
+const CACHE = "weekly-dashboard-v5";
 const ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=4",
-  "./app.js?v=4",
+  "./styles.css?v=5",
+  "./app.js?v=5",
+  "./ledger-api.js?v=5",
   "./manifest.webmanifest",
   "./icon.svg",
   "./icon-192.png",
