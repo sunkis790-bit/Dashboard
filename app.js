@@ -858,24 +858,38 @@ function lgShiftMonth(delta) {
 }
 
 /* ── 연결 링크(#sb=…): 접속 정보를 이 기기에 저장하고 주소창에서 지웁니다 ── */
-(function lgConnectFromHash() {
+function lgConnectFromHash() {
   const hash = location.hash || "";
-  if (hash.indexOf("#sb=") !== 0) return;
+  if (hash.indexOf("#sb=") !== 0) return false;
+  let ok = false;
   let note = "";
   try {
     const json = new TextDecoder().decode(b64UrlToBytes(hash.slice(4)));
     const cfg = JSON.parse(json);
     if (!window.LedgerAPI) throw new Error("module missing");
     window.LedgerAPI.setConfig({ url: cfg && cfg.url, key: cfg && cfg.key });
-    pendingTab = "ledger";
+    ok = true;
     note = "가계부 연결 정보를 이 기기에 저장했어요.";
   } catch (e) {
     note = "연결 링크를 읽지 못했어요. 링크를 다시 확인해 주세요.";
   }
-  pendingNotice = note;
+  /* 링크에 담긴 key가 주소창·방문 기록에 남지 않게 바로 지웁니다. */
   try { history.replaceState(null, "", location.pathname + location.search); }
   catch (e) { try { location.hash = ""; } catch (_) {} }
-})();
+
+  if (ok) {
+    const tab = document.querySelector('.tab[data-v="ledger"]');
+    if (tab && !appEl.hidden) setTimeout(() => { tab.click(); }, 0);
+    else pendingTab = "ledger";
+  }
+  if (!appEl.hidden) toast(note);
+  else pendingNotice = note;
+  return true;
+}
+
+lgConnectFromHash();
+/* 앱을 켜 둔 채 링크를 눌러 해시만 바뀐 경우에도 같게 처리합니다. */
+window.addEventListener("hashchange", lgConnectFromHash);
 
 /* ── 시작: 이 탭에서 이미 열었다면 바로, 아니면 잠금 화면 ── */
 (async function init() {
