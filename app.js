@@ -439,9 +439,11 @@ function lgRender() {
 
 function lgKpi(label, amount, cls, sub) {
   const neg = amount < 0;
-  const txt = (neg ? "−" : "") + lgShort(amount);
+  const body = nf(Math.abs(amount));
+  const txt = (neg ? "−" : "") + body;
+  const long = txt.length >= 9 ? " long" : "";
   return '<div class="kpi lg-kpi"><div class="t">' + label + '</div>' +
-    '<div class="v ' + cls + '" title="' + nf(Math.abs(amount)) + '원">' + txt + '<em>원</em></div>' +
+    '<div class="v ' + cls + long + '" title="' + nf(Math.abs(amount)) + '원">' + txt + '<em>원</em></div>' +
     '<div class="s">' + lgEsc(sub) + '</div></div>';
 }
 

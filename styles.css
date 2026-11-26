@@ -231,8 +231,9 @@ body.modal-open{overflow:hidden}
 .kpis.kpis-3{grid-template-columns:repeat(3,1fr);gap:8px}
 .lg-kpi{padding:12px 11px;overflow:hidden}
 .lg-kpi .t{font-size:11px}
-.lg-kpi .v{font-size:17px;margin:4px 0 1px;white-space:nowrap;letter-spacing:-.03em}
-.lg-kpi .v em{font-size:10.5px}
+.lg-kpi .v{font-size:15px;margin:4px 0 1px;white-space:nowrap;letter-spacing:-.035em;font-variant-numeric:tabular-nums}
+.lg-kpi .v.long{font-size:13px}
+.lg-kpi .v em{font-size:10.5px;margin-left:1px}
 .lg-kpi .s{font-size:10.5px}
 .lg-kpi .v.in{color:#3f8f7a}
 .lg-kpi .v.out{color:#b0567a}
@@ -321,4 +322,6 @@ ul.lg-items{list-style:none;margin:0;padding:0}
   .modal-card{border-radius:22px;padding-bottom:18px}
   .modal-actions.sticky{position:static;padding:6px 0 0}
   .lg-item{padding:9px 6px}
+  .lg-kpi .v{font-size:17px}
+  .lg-kpi .v.long{font-size:15px}
 }
