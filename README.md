@@ -10,9 +10,10 @@
 
 | 파일 | 역할 |
 | --- | --- |
-| `index.html` | 잠금 화면 + 화면 뼈대 (상단 앱바 + 본문 + 하단 탭) |
-| `styles.css` | 보라색 테마, 잠금 화면, 모바일 앱 스타일 |
-| `app.js` | 암호문(`ENC`)과 복호화·렌더링, 할 일 저장, 잠금 버튼 |
+| `index.html` | 잠금 화면 + 화면 뼈대 (상단 앱바 + 본문 + 가계부 입력/설정 모달 + 하단 탭 4개) |
+| `styles.css` | 보라색 테마, 잠금 화면, 가계부 목록·차트·모달, 모바일 앱 스타일 |
+| `app.js` | 암호문(`ENC`)과 복호화·렌더링, 할 일 저장, 잠금 버튼, 가계부 화면 |
+| `ledger-api.js` | Supabase `public.ledger_entries` REST 연결 (설정 읽기 + 조회/추가/수정/삭제) |
 | `manifest.webmanifest` | PWA 정보 (이름, 아이콘, 테마 색) |
 | `sw.js` | 오프라인 캐시 (한 번 열면 인터넷 없이도 표시) |
 | `icon.svg`, `icon-*.png` | 앱 아이콘 |
@@ -34,8 +35,27 @@
 `salt` · `iv` · `ct` · `iter`와 함께 교체합니다.
 
 - 할 일 체크 상태는 `localStorage`(`weekly-dashboard-tasks-v1`)에 기기에 저장됩니다.
-- `sw.js`의 `CACHE` 이름을 올리면(`weekly-dashboard-v3` …) 이전 캐시가 지워지고 새 화면이
-  기존 방문자에게도 반영됩니다.
+- 파일을 고치면 `sw.js`의 `CACHE` 이름(`weekly-dashboard-v7` …)과 `index.html`·`sw.js`의
+  `?v=` 숫자를 **함께** 올립니다. 그래야 기존 방문자도 새 화면을 받습니다.
+
+## 가계부 (Supabase)
+
+가계부 탭은 화면(암호문)과 달리 **Supabase**에 내역을 저장합니다.
+
+- 표: `public.ledger_entries` (`id` uuid, `entry_date`, `entry_type` expense|income,
+  `category`, `title`, `amount` integer, `payment_method`, `memo`, `created_at`)
+- 접속 정보(Supabase URL + publishable key)는 **코드에 넣지 않고** 브라우저 `localStorage`의
+  `dashboard_supabase_config`(`{ url, key }`)에만 저장합니다. `ledger-api.js`는 이 값을 읽어
+  `/rest/v1/ledger_entries`로 `GET`·`POST`·`PATCH`·`DELETE`를 보냅니다.
+- 휴대폰에서 긴 키를 입력하지 않아도 되도록 **연결 링크**를 씁니다.
+  `…/Dashboard/#sb=<base64url(JSON.stringify({url,key}))>`
+  → 접속 정보를 저장한 뒤 `history.replaceState`로 주소창에서 즉시 지우고 가계부 탭을 엽니다.
+  (앱을 켜 둔 채 링크를 눌러 해시만 바뀌어도 동작합니다.)
+- 연결 설정은 가계부 탭의 안내 카드 또는 오른쪽 위 **연결 설정**에서 바꾸거나 해제합니다.
+
+> `anon`(publishable) 키에 이 표의 읽기·쓰기 권한이 열려 있으므로, 키를 아는 사람은 누구나
+> 내역을 읽고 고칠 수 있습니다. 키는 저장소·채팅에 평문으로 남기지 말고, 필요하면 Supabase에서
+> RLS(행 수준 보안) 정책과 키 회전을 사용하세요.
 
 ## 공개 범위
 
