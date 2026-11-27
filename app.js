@@ -789,9 +789,26 @@ function consumeAuthHash() {
   return out;
 }
 
+/* 이메일 링크가 ?token_hash=… 로 올 때도 확인해 세션을 만듭니다. */
+async function consumeTokenHash() {
+  const p = new URLSearchParams(location.search || "");
+  const tokenHash = p.get("token_hash"), type = p.get("type");
+  if (!tokenHash) return null;
+  let out = null;
+  try {
+    const r = await authPost("verify", { type: type || "signup", token_hash: tokenHash });
+    if (r.ok && r.data && r.data.access_token) { writeSession(r.data); out = { ok: true }; }
+    else out = { error: true };
+  } catch (e) { out = { error: true }; }
+  try { history.replaceState(null, "", location.pathname); } catch (e) {}
+  return out;
+}
+
 /* ── 시작: 이미 로그인했으면 가계부, 아니면 로그인 화면 ── */
 (async function init() {
-  const fromLink = consumeAuthHash();
+  const fromHash = consumeAuthHash();
+  const fromQuery = await consumeTokenHash();
+  const fromLink = fromHash || fromQuery;
   if (fromLink && fromLink.error) {
     showAuth("링크를 확인하지 못했어요. 이메일과 비밀번호로 다시 로그인해 주세요.");
     return;

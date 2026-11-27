@@ -47,6 +47,6 @@
 
 ## 고칠 때
 
-- 파일을 고치면 `sw.js`의 `CACHE` 이름(`ledger-dashboard-v8` …)과 `index.html`·`sw.js`의
+- 파일을 고치면 `sw.js`의 `CACHE` 이름(`ledger-dashboard-v9` …)과 `index.html`·`sw.js`의
   `?v=` 숫자를 **함께** 올립니다. 그래야 기존 방문자도 새 화면을 받습니다.
 - Supabase 프로젝트 `Dashboard`: https://supabase.com/dashboard/project/acgenglwpzawpljpchog
