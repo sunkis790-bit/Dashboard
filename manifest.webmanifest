@@ -1,7 +1,7 @@
 {
-  "name": "주간 대시보드",
-  "short_name": "대시보드",
-  "description": "메일 정리와 리뷰 작업 진행을 한눈에 보는 주간 대시보드",
+  "name": "가계부",
+  "short_name": "가계부",
+  "description": "이메일 로그인으로 쓰는 개인 가계부",
   "lang": "ko",
   "dir": "ltr",
   "start_url": "./index.html",
@@ -12,7 +12,7 @@
   "orientation": "portrait",
   "background_color": "#faf9fc",
   "theme_color": "#6a4cb0",
-  "categories": ["productivity", "utilities"],
+  "categories": ["finance", "productivity"],
   "icons": [
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },

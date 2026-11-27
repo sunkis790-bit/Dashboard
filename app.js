@@ -1,283 +1,256 @@
 /* ─────────────────────────────────────────────
-   주간 대시보드 — 화면 코드
+   가계부 — 화면 코드
 
-   대시보드 내용은 아래 ENC에 암호문으로만 들어 있습니다.
-   (PBKDF2-SHA256 + AES-256-GCM, Web Crypto로만 복호화)
-   이 파일에는 평문 데이터도, 비밀번호도 넣지 마세요.
-   데이터를 바꾸려면 대시보드 데이터를 JSON으로 만들어 다시 암호화한 뒤 ENC를 바꿉니다.
+   화면은 가계부 하나뿐입니다.
+   로그인은 Supabase Auth(이메일 + 비밀번호)로 하고,
+   내역은 RLS로 보호된 public.ledger_entries에 저장됩니다.
+   로그인한 사용자는 자기 user_id의 행만 읽고 쓸 수 있습니다.
    ───────────────────────────────────────────── */
-const ENC = {
-  v: 1,
-  kdf: "PBKDF2-SHA256",
-  iter: 210000,
-  cipher: "AES-256-GCM",
-  salt: "TpJcagdHGuGk+ZvoSCnHAw==",
-  iv: "35qbau4gjd8JJH4G",
-  ct: "tnyJ7AHAMZGpHdYiqqKe6LHIBvEGoAXCq0TkAzcuBzSaEeZ7ASnvJD86Tn/rsK58wlXonCCv3E7HcdQK82ANjc1rH8z5SyjoobbNSs9PsFa9g4GFVX/dtc6RdhguTC+LYZ76kPewLu1P398NVv30VvYA1cvuEo6LHcNibAqv09Qbd5jBY1Du/oeAclX8HaVdxD1IdAH6HeP4XxMNjGUopBW69IEmLtOzNYUU7xEzW2BVg/1PjbKADlSwXWYKCxZqvvsYmbtxUKqIINggZ/NZagzvNpEy0AqsQWdgwswdVQ+Aq63LoQnt1g0uFsmW65//SUv0bzt7FlDmYN1N0aZxyPV6Hg6MaZN9rRsTjfs91jtBG7Ear/tDaRHjr6f/+qMxMXw+mRsen0VJRruVQp+HVj2cZCp0+SikeHMeihc/4r8tH7uFXFmdqB3dHiaH4YEhiNe47VdQp0AZ/OZAOxU+p7ad+fqwQ1U06c67IojUk1c18wCAm8orBazBFfhKh/wcqwvjsBvzTvdhuYdqkOYn9axOxbDSQ27SJ9RHQypLuLyUe7rCOamY9GbmLGFfn4IP5M/p8Vb/mSzhe6TV1WJmNjgjr0pIrEL2OQhGw65ZSKwXNvlb0zrmDdyHub4zJE/9N9CI16mOrf/0te3GxojvjIDtRidfc4M8kZ1uhAMXN/7kaPT/FmEzK+ycjS7FEUi4dntBGQYnJwJpwd6NIS6xSr49IijXzDhZVSdqrm0DE2OOVoz88yccOkDSTJK4WKVP++d6ITYETQ65YgLDYmpED1AcnRdYIt10+Yvjed/ToBD74YVH0nVPYhT5PeDCyC6V65spxLkyBAKcd+B4rgbzCCOvNOgM5pjZnOnsik+3QmkS+UVmrm1qy5HcUfpa9D29VOcEMYSBjX2vLOoS2gT43c/PPLnG1DidyDSnSxRYtjuXQqorpjONJdp+McHgjKW7z9Wr+4PqU7FyB1AuuIfeXjkD3bsoT1J7b/M3ho6U1QlkzH4v7/4tSZjKv392D43s1xo0IOSJo+9DnItgsGZ3miD7YCyj9IgCbH1sUhDn6ar2BeDRMxXprmEMziDuHCsiQK9Ro2XyJon79vqxXzeIyruFR5hWDNGft44rFPzjim9r0pIGmoxcv5YiNqhA4ZDoXOYMUsDX9NUG6nCEF0u9UKQwXpGaUqKbx3kJEvINxYApkH3MhNTRmLZ7nDrEtXNXc1fjcp1gR48NcWq49jfndRFUNEtEXmMQoqJnj/NblpZCDx2wSYpMfSph2z+AUkuvYOddWc0JjWP4CYPOR1qCm2kXuSuklYUKs3OWsgSizng9Sxt2xk+Xlm5wE/xKPltOIX0UruNe8ELclt8fVbErcaVge58nV2EuvNPc/YKAJouZwfC5elaQTE6a6XQNkT0QpTbvjk3XMYiX09Soxw7rGHjVjCrgisoKsMfsMg8p0Tgu4gBmkDEP3+EoGGgjC6dtBlZPI3lzMbNYlY+JVjJu"
-};
+const SB_URL = "https://acgenglwpzawpljpchog.supabase.co";
+const SB_KEY = "sb_publishable_6mtDDnrNEnit9dUI6Fgmdw_fqzFukpI";
+const SESSION_KEY = "ledger-auth-session-v1";
 
 const $ = id => document.getElementById(id);
 const nf = n => n.toLocaleString("ko-KR");
 
-const b64ToBytes = s => {
-  const bin = atob(s);
-  const u = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
-  return u;
-};
-const bytesToB64 = buf => {
-  const b = new Uint8Array(buf);
-  let s = "";
-  for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
-  return btoa(s);
-};
-
-/* base64url(연결 링크) → 바이트 */
-function b64UrlToBytes(s) {
-  let t = String(s).replace(/-/g, "+").replace(/_/g, "/").trim();
-  while (t.length % 4) t += "=";
-  const bin = atob(t);
-  const u = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
-  return u;
+/* ── 로그인 세션(이 기기 브라우저에만 보관) ── */
+function readSession() {
+  try {
+    const s = JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
+    return s && s.access_token ? s : null;
+  } catch (e) { return null; }
+}
+function writeSession(d) {
+  if (!d || !d.access_token) return null;
+  const prev = readSession() || {};
+  const s = {
+    access_token: d.access_token,
+    refresh_token: d.refresh_token || prev.refresh_token || "",
+    expires_at: Date.now() + (Number(d.expires_in) || 3600) * 1000,
+    user: d.user || prev.user || null
+  };
+  try { localStorage.setItem(SESSION_KEY, JSON.stringify(s)); } catch (e) {}
+  return s;
+}
+function dropSession() {
+  try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
 }
 
-/* 이 탭 세션 동안만 쓰는 열쇠(비밀번호 아님). 탭을 닫으면 사라집니다. */
-const SKEY = "weekly-dashboard-session-key-v2";
-
-/* 연결 링크(#sb=…)로 들어왔을 때 열 탭과 안내 문구 */
-let pendingTab = "";
-let pendingNotice = "";
-
-async function deriveKey(password) {
-  const base = await crypto.subtle.importKey(
-    "raw", new TextEncoder().encode(password.normalize("NFC")),
-    "PBKDF2", false, ["deriveKey"]
-  );
-  return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt: b64ToBytes(ENC.salt), iterations: ENC.iter, hash: "SHA-256" },
-    base, { name: "AES-GCM", length: 256 }, true, ["decrypt"]
-  );
+/* ── Supabase Auth ── */
+async function authPost(path, body) {
+  const res = await fetch(SB_URL + "/auth/v1/" + path, {
+    method: "POST",
+    headers: { apikey: SB_KEY, "Content-Type": "application/json" },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  const text = await res.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch (e) { data = null; }
+  return { ok: res.ok, status: res.status, data: data };
 }
 
-async function decryptWith(key) {
-  const plain = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: b64ToBytes(ENC.iv), tagLength: 128 },
-    key, b64ToBytes(ENC.ct)
-  );
-  return JSON.parse(new TextDecoder().decode(plain));
+function authErrorText(r) {
+  const d = r.data || {};
+  const raw = [
+    d.error_code, d.code, d.msg, d.message, d.error_description, d.error
+  ].filter(Boolean).join(" ");
+  if (/invalid_credentials/i.test(raw)) return "이메일 또는 비밀번호가 맞지 않습니다.";
+  if (/email_not_confirmed/i.test(raw)) return "이메일 확인이 아직 안 끝났어요. 받은 메일의 확인 링크를 먼저 눌러 주세요.";
+  if (/user_already_exists|already registered/i.test(raw)) return "이미 가입된 이메일이에요. 로그인으로 들어가 주세요.";
+  if (/weak_password|at least 6/i.test(raw)) return "비밀번호는 6자 이상으로 정해 주세요.";
+  if (/over_email_send_rate_limit|rate limit/i.test(raw)) return "잠시 뒤 다시 시도해 주세요. 인증 메일을 너무 자주 보냈어요.";
+  if (r.status === 429) return "잠시 뒤 다시 시도해 주세요. 요청이 너무 잦았어요.";
+  if (/invalid.*email|email.*invalid/i.test(raw)) return "이메일 주소를 확인해 주세요.";
+  if (r.status === 422) return "입력한 값을 다시 확인해 주세요. (비밀번호는 6자 이상)";
+  return d.msg || d.message || d.error_description || d.error || "요청을 처리하지 못했어요. 잠시 뒤 다시 시도해 주세요.";
 }
 
-/* ── 잠금 화면 ── */
-const lockEl = $("lock");
+async function signIn(email, password) {
+  const r = await authPost("token?grant_type=password", { email: email, password: password });
+  if (!r.ok || !r.data || !r.data.access_token) throw new Error(authErrorText(r));
+  writeSession(r.data);
+}
+
+async function signUp(email, password) {
+  const r = await authPost("signup", { email: email, password: password });
+  if (!r.ok) throw new Error(authErrorText(r));
+  if (r.data && r.data.access_token) { writeSession(r.data); return "session"; }
+  return "confirm";
+}
+
+async function refreshSession() {
+  const s = readSession();
+  if (!s || !s.refresh_token) throw new Error("로그인이 필요합니다.");
+  const r = await authPost("token?grant_type=refresh_token", { refresh_token: s.refresh_token });
+  if (!r.ok || !r.data || !r.data.access_token) { dropSession(); throw new Error("다시 로그인해 주세요."); }
+  return writeSession(r.data);
+}
+
+async function ensureSession() {
+  const s = readSession();
+  if (!s) return null;
+  if (!s.expires_at || s.expires_at - Date.now() < 60000) {
+    try { return await refreshSession(); } catch (e) { return null; }
+  }
+  return s;
+}
+
+async function signOut() {
+  const s = readSession();
+  dropSession();
+  if (s && s.access_token) {
+    try {
+      await fetch(SB_URL + "/auth/v1/logout", {
+        method: "POST",
+        headers: { apikey: SB_KEY, Authorization: "Bearer " + s.access_token }
+      });
+    } catch (e) {}
+  }
+  if (typeof LG !== "undefined") { LG.rows = []; LG.loaded = false; LG.error = ""; }
+  ["lg-list", "lg-summary", "lg-cat-wrap"].forEach(id => { const el = $(id); if (el) el.innerHTML = ""; });
+  $("who").textContent = "";
+  showAuth("로그아웃했어요.");
+}
+
+/* ── 로그인 화면 ── */
+const authEl = $("auth");
 const appEl = $("app");
+let mode = "signin";
 let busy = false;
 
-function setError(msg) {
-  const el = $("pw-error");
+function setAuthError(msg) {
+  const el = $("auth-error");
   el.textContent = msg || "";
   el.classList.toggle("show", !!msg);
 }
+
 function setBusy(on) {
   busy = on;
-  $("pw-go").disabled = on;
-  $("pw-go").textContent = on ? "여는 중…" : "열기";
+  const btn = $("auth-go");
+  btn.disabled = on;
+  btn.textContent = on ? (mode === "signup" ? "가입 중…" : "로그인 중…")
+                       : (mode === "signup" ? "회원가입" : "로그인");
 }
 
-async function unlock(password) {
-  const key = await deriveKey(password);
-  const data = await decryptWith(key);
-  try { sessionStorage.setItem(SKEY, bytesToB64(await crypto.subtle.exportKey("raw", key))); } catch (e) {}
-  boot(data);
+function setMode(m) {
+  mode = m === "signup" ? "signup" : "signin";
+  document.querySelectorAll("#auth-mode button").forEach(b => {
+    const on = b.dataset.mode === mode;
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-selected", on ? "true" : "false");
+  });
+  $("auth-go").textContent = mode === "signup" ? "회원가입" : "로그인";
+  $("auth-pw").setAttribute("autocomplete", mode === "signup" ? "new-password" : "current-password");
+  $("auth-note").classList.remove("ok");
+  $("auth-note").innerHTML = mode === "signup"
+    ? "이메일과 <b>6자 이상</b>의 비밀번호로 계정을 만듭니다. 인증 메일이 오면 확인 링크를 눌러 주세요."
+    : "처음이면 <b>회원가입</b>에서 계정을 만들 수 있어요.";
+  setAuthError("");
 }
 
-$("lock-form").addEventListener("submit", async e => {
-  e.preventDefault();
-  if (busy) return;
-  const pw = $("pw").value;
-  if (!pw) { setError("비밀번호를 입력해 주세요."); return; }
-  setError("");
-  setBusy(true);
-  try {
-    await unlock(pw);
-  } catch (err) {
-    setError("비밀번호가 맞지 않습니다.");
-    $("pw").value = "";
-    $("pw").focus();
-  } finally {
-    setBusy(false);
-  }
+$("auth-mode").addEventListener("click", e => {
+  const b = e.target.closest("button[data-mode]");
+  if (b) setMode(b.dataset.mode);
 });
 
 $("pw-eye").addEventListener("click", () => {
-  const input = $("pw");
+  const input = $("auth-pw");
   const show = input.type === "password";
   input.type = show ? "text" : "password";
   $("pw-eye").setAttribute("aria-label", show ? "비밀번호 가리기" : "비밀번호 보기");
   input.focus();
 });
 
-/* ── 잠금 해제 후 화면 ── */
-function boot(DATA) {
-  lockEl.hidden = true;
+$("auth-form").addEventListener("submit", async e => {
+  e.preventDefault();
+  if (busy) return;
+  const email = $("auth-email").value.trim();
+  const password = $("auth-pw").value;
+  if (!email) { setAuthError("이메일을 넣어 주세요."); $("auth-email").focus(); return; }
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { setAuthError("이메일 형식을 확인해 주세요."); $("auth-email").focus(); return; }
+  if (!password) { setAuthError("비밀번호를 넣어 주세요."); $("auth-pw").focus(); return; }
+  if (mode === "signup" && password.length < 6) { setAuthError("비밀번호는 6자 이상으로 정해 주세요."); $("auth-pw").focus(); return; }
+
+  setAuthError("");
+  setBusy(true);
+  try {
+    if (mode === "signup") {
+      const result = await signUp(email, password);
+      if (result === "confirm") {
+        $("auth-pw").value = "";
+        setMode("signin");
+        $("auth-note").classList.add("ok");
+        $("auth-note").textContent = "입력하신 이메일로 인증 메일을 보냈습니다. 메일함의 확인 링크를 누른 뒤 로그인해 주세요.";
+        $("auth-email").value = email;
+        $("auth-pw").focus();
+        return;
+      }
+      boot();
+    } else {
+      await signIn(email, password);
+      boot();
+    }
+  } catch (err) {
+    setAuthError((err && err.message) || "요청을 처리하지 못했어요.");
+  } finally {
+    setBusy(false);
+  }
+});
+
+/* ── 화면 전환 ── */
+function showAuth(msg) {
+  authEl.hidden = false;
+  appEl.hidden = true;
+  document.body.classList.add("locked");
+  $("auth-pw").value = "";
+  if (msg) {
+    $("auth-note").classList.add("ok");
+    $("auth-note").textContent = msg;
+  }
+}
+
+function boot() {
+  const s = readSession();
+  authEl.hidden = true;
   appEl.hidden = false;
   document.body.classList.remove("locked");
   if (deferredPrompt) $("installBtn").hidden = false;
 
-  $("stamp").textContent = "기준 " + DATA.updated;
+  $("who").textContent = (s && s.user && s.user.email) || "";
   $("foot").innerHTML =
-    "수치는 마지막 갱신 시점 기준입니다. 삭제한 메일은 휴지통에서 복원할 수 있어요.<br>" +
-    "내용은 암호화되어 있고, 비밀번호를 아는 이 기기에서만 열립니다.";
+    "내역은 로그인한 계정에만 보입니다.<br>" +
+    "다른 기기에서도 같은 이메일로 로그인하면 이어서 쓸 수 있어요.";
 
-  if (pendingNotice) { toast(pendingNotice); pendingNotice = ""; }
+  try {
+    LedgerAPI.configure({ url: SB_URL, key: SB_KEY });
+    LedgerAPI.setAccessToken(s ? s.access_token : "");
+    lgInit();
+  } catch (e) { console.warn("ledger init", e); }
 
-  /* ── KPI ── */
-  $("kpis").innerHTML = DATA.kpi.map(k =>
-    `<div class="kpi">
-       <div class="t">${k.t}</div>
-       <div class="v">${nf(k.v)}<em>${k.u}</em></div>
-       <div class="s">${k.s}</div>
-     </div>`
-  ).join("");
-
-  /* ── 막대: 정리 전 → 정리 후 ── */
-  const maxUnread = Math.max(DATA.unreadBefore, DATA.unreadAfter);
-  $("b1n").textContent = nf(DATA.unreadBefore) + "통";
-  $("b2n").textContent = nf(DATA.unreadAfter) + "통";
-  const drop = Math.round((1 - DATA.unreadAfter / DATA.unreadBefore) * 100);
-  $("dropHint").innerHTML = `안 읽은 메일이 <b>${drop}%</b> 줄었어요. (${nf(DATA.unreadBefore - DATA.unreadAfter)}통 감소)`;
-
-  requestAnimationFrame(() => {
-    $("b1").style.height = (DATA.unreadBefore / maxUnread * 100) + "%";
-    $("b2").style.height = (DATA.unreadAfter / maxUnread * 100) + "%";
-  });
-
-  /* ── 이번 주 요약 ── */
-  $("notes").innerHTML = [
-    `안 읽은 메일 <b>${nf(DATA.unreadBefore)}통 → ${nf(DATA.unreadAfter)}통</b>`,
-    `${DATA.cleaned[0].label} <b>${nf(DATA.cleaned[0].v)}통</b> 포함 <b>${nf(DATA.kpi[1].v)}통</b> 정리`,
-    `${DATA.kpi[2].t} <b>${DATA.kpi[2].v}건</b> · ${DATA.kpi[3].t} <b>${nf(DATA.kpi[3].v)}점</b>`
-  ].map(s => `<li><span class="tick">✓</span><span>${s}</span></li>`).join("");
-
-  /* ── 도넛: 안 읽던 메일의 성격 ── */
-  const totalMail = DATA.categories.reduce((s, c) => s + c.v, 0);
-  const donut = $("donut");
-  let offset = 0;
-  DATA.categories.forEach(c => {
-    const len = c.v / totalMail * 100;
-    const el = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    el.setAttribute("cx", 21); el.setAttribute("cy", 21); el.setAttribute("r", 15.915);
-    el.setAttribute("fill", "none");
-    el.setAttribute("stroke", c.c);
-    el.setAttribute("stroke-width", 6.5);
-    el.setAttribute("stroke-dasharray", `0 100`);
-    el.setAttribute("stroke-dashoffset", -offset);
-    el.setAttribute("transform", "rotate(-90 21 21)");
-    donut.appendChild(el);
-    requestAnimationFrame(() => el.setAttribute("stroke-dasharray", `${len} ${100 - len}`));
-    offset += len;
-  });
-  const centerTop = document.createElementNS("http://www.w3.org/2000/svg", "text");
-  centerTop.setAttribute("x", 21); centerTop.setAttribute("y", 20.4);
-  centerTop.setAttribute("text-anchor", "middle"); centerTop.setAttribute("font-size", 5);
-  centerTop.setAttribute("font-weight", 700); centerTop.setAttribute("fill", "#2e2a3b");
-  centerTop.textContent = nf(totalMail);
-  const centerBottom = document.createElementNS("http://www.w3.org/2000/svg", "text");
-  centerBottom.setAttribute("x", 21); centerBottom.setAttribute("y", 24.6);
-  centerBottom.setAttribute("text-anchor", "middle"); centerBottom.setAttribute("font-size", 2.6);
-  centerBottom.setAttribute("fill", "#9a93ad");
-  centerBottom.textContent = "통";
-  donut.appendChild(centerTop);
-  donut.appendChild(centerBottom);
-
-  $("pie-total").textContent = "합계 " + nf(totalMail) + "통";
-  $("legend").innerHTML = DATA.categories.map(c =>
-    `<div class="row"><span class="dot" style="background:${c.c}"></span>${c.label}<b>${Math.round(c.v / totalMail * 100)}%</b></div>`
-  ).join("");
-
-  /* ── 정리한 메일 내역 ── */
-  const cleanedMax = Math.max(...DATA.cleaned.map(c => c.v));
-  $("cleaned-total").textContent = "합계 " + nf(DATA.cleaned.reduce((s, c) => s + c.v, 0)) + "통";
-  $("cleaned").innerHTML = DATA.cleaned.map(c =>
-    `<li>
-       <div class="l1"><span>${c.label}</span><b>${nf(c.v)}통</b></div>
-       <div class="meter"><i style="width:${(c.v / cleanedMax * 100).toFixed(1)}%"></i></div>
-     </li>`
-  ).join("");
-
-  /* ── 할 일 (localStorage) ── */
-  const KEY = "weekly-dashboard-tasks-v1";
-  let saved = {};
-  try { saved = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { saved = {}; }
-
-  const taskList = $("tasks");
-  function renderTasks() {
-    taskList.innerHTML = DATA.tasks.map(t => {
-      const done = !!saved[t.id];
-      return `<li data-id="${t.id}" class="${done ? "done" : ""}" role="checkbox" aria-checked="${done}" tabindex="0">
-        <span class="box">${done ? "✓" : ""}</span>
-        <span><div class="tt">${t.t}</div><div class="dd">${t.d}</div></span>
-      </li>`;
-    }).join("");
-    const doneCount = DATA.tasks.filter(t => saved[t.id]).length;
-    $("todo-progress").textContent = `${doneCount} / ${DATA.tasks.length} 완료`;
-    $("todoBar").style.width = (doneCount / DATA.tasks.length * 100) + "%";
-  }
-  function toggle(id) {
-    saved[id] = !saved[id];
-    try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (e) {}
-    renderTasks();
-  }
-  taskList.addEventListener("click", e => {
-    const li = e.target.closest("li");
-    if (li) toggle(li.dataset.id);
-  });
-  taskList.addEventListener("keydown", e => {
-    if (e.key !== "Enter" && e.key !== " ") return;
-    const li = e.target.closest("li");
-    if (li) { e.preventDefault(); toggle(li.dataset.id); }
-  });
-  renderTasks();
-
-  /* ── 탭 이동 ── */
-  const views = { summary: $("view-summary"), mail: $("view-mail"), todo: $("view-todo"), ledger: $("view-ledger") };
-  function show(name) {
-    if (!views[name]) return;
-    Object.keys(views).forEach(k => views[k].classList.toggle("hide", k !== name));
-    document.querySelectorAll(".tab").forEach(b => {
-      const on = b.dataset.v === name;
-      b.classList.toggle("on", on);
-      b.setAttribute("aria-selected", on ? "true" : "false");
-    });
-    try { history.replaceState(null, "", "#" + name); } catch (e) {}
-    if (name === "ledger") { try { lgOnShow(); } catch (e) { console.warn("ledger", e); } }
-    window.scrollTo(0, 0);
-  }
-  document.querySelectorAll(".tab").forEach(b => b.addEventListener("click", () => show(b.dataset.v)));
-  document.querySelectorAll(".tab").forEach(b => b.addEventListener("keydown", e => {
-    if (e.key !== "Enter" && e.key !== " ") return;
-    e.preventDefault(); show(b.dataset.v);
-  }));
-
-  /* 첫 화면: 연결 링크로 들어왔으면 가계부, 아니면 주소 뒤 #mail · #todo · #ledger */
-  const startTab = (location.hash || "").replace("#", "");
-  show(views[pendingTab] ? pendingTab : views[startTab] ? startTab : "summary");
-  pendingTab = "";
-  window.addEventListener("hashchange", () => {
-    const name = (location.hash || "").replace("#", "");
-    if (views[name]) show(name);
-  });
-
-  /* ── 잠금 버튼 ── */
-  $("lockBtn").addEventListener("click", () => {
-    try { sessionStorage.removeItem(SKEY); } catch (e) {}
-    location.hash = "";
-    location.reload();
-  });
-
-  /* ── 가계부 준비(가계부 오류가 다른 탭을 막지 않도록 감싼다) ── */
-  try { lgInit(); } catch (e) { console.warn("ledger init", e); }
+  if (!(s && s.user && s.user.email)) refreshWho();
 }
+
+async function refreshWho() {
+  const s = readSession();
+  if (!s) return;
+  try {
+    const res = await fetch(SB_URL + "/auth/v1/user", {
+      headers: { apikey: SB_KEY, Authorization: "Bearer " + s.access_token }
+    });
+    if (!res.ok) return;
+    const u = await res.json();
+    if (u && u.email) {
+      const cur = readSession();
+      if (cur) {
+        cur.user = { id: u.id, email: u.email };
+        try { localStorage.setItem(SESSION_KEY, JSON.stringify(cur)); } catch (e) {}
+      }
+      $("who").textContent = u.email;
+    }
+  } catch (e) {}
+}
+
+$("logoutBtn").addEventListener("click", () => { signOut(); });
 
 /* ── 토스트 ── */
 let toastTimer;
@@ -313,6 +286,7 @@ if ("serviceWorker" in navigator && location.protocol === "https:") {
     navigator.serviceWorker.register("sw.js").catch(() => {});
   });
 }
+
 
 /* ═════════════════════════════════════════════
    가계부 — Supabase public.ledger_entries
@@ -362,20 +336,19 @@ function lgShort(n) {
   return nf(v);
 }
 function lgApi() { return window.LedgerAPI || null; }
-function lgReady() { const a = lgApi(); return !!(a && a.isConfigured()); }
+function lgReady() { const a = lgApi(); return !!(a && a.isReady()); }
 function lgErrMessage(e) {
   if (!e) return "알 수 없는 오류가 났어요.";
-  if (e.status === 401 || e.status === 403) return "Supabase가 요청을 거부했어요. 연결 설정에서 key를 확인해 주세요.";
+  if (e.status === 401) return "로그인이 만료되었어요. 다시 로그인해 주세요.";
+  if (e.status === 403) return "이 계정에는 이 내역을 볼 권한이 없어요.";
   if (e.status === 404) return "ledger_entries 표를 찾지 못했어요. Supabase에 표가 있는지 확인해 주세요.";
   if (e.status === 400) return "저장 형식이 맞지 않아요. " + (e.message || "") ;
   return e.message || "연결하지 못했어요.";
 }
 
-/* ── 연결 상태에 따라 화면을 바꿉니다 ── */
+/* ── 로그인 상태에 따라 입력 버튼을 보이거나 숨깁니다 ── */
 function lgApplyConfigState() {
   const on = lgReady();
-  $("ledger-setup").classList.toggle("hide", on);
-  $("ledger-body").classList.toggle("hide", !on);
   $("entry-add").classList.toggle("hide", !on);
   $("entry-add-top").classList.toggle("hide", !on);
 }
@@ -384,24 +357,15 @@ function lgInit() {
   if (!LG.bound) { lgBind(); LG.bound = true; }
   if (!LG.month) LG.month = lgMonthKey(new Date());
   $("month").value = LG.month;
-  if (!lgApi() && !$("setup-err").textContent) {
-    $("setup-err").textContent = "가계부 모듈을 불러오지 못했어요. 새로고침해 주세요.";
-  }
-  lgApplyConfigState();
-  if (lgReady()) lgLoad();
-}
-
-function lgOnShow() {
-  if (!LG.month) LG.month = lgMonthKey(new Date());
   lgApplyConfigState();
   if (lgReady()) lgLoad();
 }
 
 /* ── 불러오기 ── */
-async function lgLoad() {
+async function lgLoad(retried) {
   const api = lgApi();
   if (!api) { lgListMessage("가계부 모듈을 불러오지 못했어요. 새로고침해 주세요.", true); return; }
-  if (!api.isConfigured()) { lgApplyConfigState(); return; }
+  if (!api.isReady()) { lgApplyConfigState(); return; }
   lgApplyConfigState();
   const seq = ++LG.seq;
   const range = lgMonthRange(LG.month);
@@ -416,6 +380,16 @@ async function lgLoad() {
     lgRender();
   } catch (err) {
     if (seq !== LG.seq) return;
+    /* 로그인 토큰이 만료됐으면 한 번 새로 받아 다시 시도합니다. */
+    if (err && err.status === 401 && !retried) {
+      try {
+        const s = await refreshSession();
+        if (s) { api.setAccessToken(s.access_token); await lgLoad(true); return; }
+      } catch (e) {
+        signOut();
+        return;
+      }
+    }
     LG.rows = [];
     LG.error = lgErrMessage(err);
     LG.loaded = true;
@@ -598,7 +572,7 @@ function lgCloseModal(id) {
 
 /* ── 내역 입력·수정 ── */
 function lgOpenEntry(row) {
-  if (!lgReady()) { toast("먼저 Supabase 연결을 해 주세요"); return; }
+  if (!lgReady()) { toast("다시 로그인해 주세요"); return; }
   LG.editing = row ? row.id : null;
   LG.entryType = row && row.entry_type === "income" ? "income" : "expense";
   $("entry-title").textContent = row ? "내역 수정" : "내역 추가";
@@ -628,7 +602,7 @@ async function lgSaveEntry(e) {
   e.preventDefault();
   if (LG.saving) return;
   const api = lgApi();
-  if (!api || !api.isConfigured()) { lgEntryErr("연결 설정을 먼저 해 주세요."); return; }
+  if (!api || !api.isReady()) { lgEntryErr("다시 로그인해 주세요."); return; }
 
   const entry = {
     entry_date: $("entry-date").value,
@@ -682,20 +656,6 @@ async function lgDeleteEntry() {
     $("entry-confirm").classList.add("hide");
     $("entry-actions").classList.remove("hide");
   }
-}
-
-/* ── 연결 설정 ── */
-function lgOpenCfg() {
-  const api = lgApi();
-  if (!api) { toast("가계부 모듈을 불러오지 못했어요"); return; }
-  const cfg = api.getConfig();
-  $("cfg-url").value = cfg ? cfg.url : "";
-  $("cfg-key").value = "";
-  $("cfg-err").textContent = "";
-  $("cfg-state").textContent = cfg
-    ? "이 기기에만 저장된 접속 정보입니다. key를 바꿀 때만 새 key를 넣어 주세요."
-    : "아직 연결되지 않았어요.";
-  lgOpenModal("cfg-modal");
 }
 
 /* ── 이벤트 연결(처음 한 번만) ── */
@@ -788,56 +748,6 @@ function lgBind() {
     lgRenderList();
   });
 
-  /* 연결 설정 */
-  $("cfg-open").addEventListener("click", lgOpenCfg);
-  $("cfg-close").addEventListener("click", () => lgCloseModal("cfg-modal"));
-  $("cfg-form").addEventListener("submit", e => {
-    e.preventDefault();
-    const api = lgApi();
-    if (!api) return;
-    const cur = api.getConfig();
-    const key = $("cfg-key").value.trim() || (cur ? cur.key : "");
-    if (!key) { $("cfg-err").textContent = "key를 넣어 주세요."; return; }
-    try {
-      api.setConfig({ url: $("cfg-url").value.trim(), key: key });
-      lgCloseModal("cfg-modal");
-      toast("연결 설정을 저장했어요");
-      if (!LG.month) LG.month = lgMonthKey(new Date());
-      lgApplyConfigState();
-      lgLoad();
-    } catch (err) {
-      $("cfg-err").textContent = err.message;
-    }
-  });
-  $("cfg-clear").addEventListener("click", () => {
-    const api = lgApi();
-    if (!api) return;
-    api.clearConfig();
-    lgCloseModal("cfg-modal");
-    toast("연결을 해제했어요");
-    lgApplyConfigState();
-  });
-
-  /* 연결 전 설정 폼 */
-  $("setup-form").addEventListener("submit", e => {
-    e.preventDefault();
-    const api = lgApi();
-    $("setup-err").textContent = "";
-    if (!api) { $("setup-err").textContent = "가계부 모듈을 불러오지 못했어요. 새로고침해 주세요."; return; }
-    try {
-      api.setConfig({ url: $("setup-url").value.trim(), key: $("setup-key").value.trim() });
-      $("setup-url").value = "";
-      $("setup-key").value = "";
-      LG.month = lgMonthKey(new Date());
-      $("month").value = LG.month;
-      toast("연결됐어요");
-      lgApplyConfigState();
-      lgLoad();
-    } catch (err) {
-      $("setup-err").textContent = err.message;
-    }
-  });
-
   /* 모달 바깥을 누르거나 Esc */
   Array.prototype.forEach.call(document.querySelectorAll(".modal"), m => {
     m.addEventListener("click", e => { if (e.target === m) lgCloseModal(m.id); });
@@ -857,53 +767,37 @@ function lgShiftMonth(delta) {
   lgLoad();
 }
 
-/* ── 연결 링크(#sb=…): 접속 정보를 이 기기에 저장하고 주소창에서 지웁니다 ── */
-function lgConnectFromHash() {
+/* ── 이메일 확인 링크로 돌아온 토큰(#access_token=…)을 저장합니다 ── */
+function consumeAuthHash() {
   const hash = location.hash || "";
-  if (hash.indexOf("#sb=") !== 0) return false;
-  let ok = false;
-  let note = "";
-  try {
-    const json = new TextDecoder().decode(b64UrlToBytes(hash.slice(4)));
-    const cfg = JSON.parse(json);
-    if (!window.LedgerAPI) throw new Error("module missing");
-    window.LedgerAPI.setConfig({ url: cfg && cfg.url, key: cfg && cfg.key });
-    ok = true;
-    note = "가계부 연결 정보를 이 기기에 저장했어요.";
-  } catch (e) {
-    note = "연결 링크를 읽지 못했어요. 링크를 다시 확인해 주세요.";
+  if (hash.indexOf("access_token=") === -1 && hash.indexOf("error_description=") === -1) return null;
+  const p = new URLSearchParams(hash.replace(/^#/, ""));
+  let out = null;
+  if (p.get("error_description")) {
+    out = { error: p.get("error_description") };
+  } else if (p.get("access_token")) {
+    writeSession({
+      access_token: p.get("access_token"),
+      refresh_token: p.get("refresh_token"),
+      expires_in: Number(p.get("expires_in")) || 3600
+    });
+    out = { ok: true };
   }
-  /* 링크에 담긴 key가 주소창·방문 기록에 남지 않게 바로 지웁니다. */
+  /* 주소창·방문 기록에 토큰이 남지 않게 바로 지웁니다. */
   try { history.replaceState(null, "", location.pathname + location.search); }
   catch (e) { try { location.hash = ""; } catch (_) {} }
-
-  if (ok) {
-    const tab = document.querySelector('.tab[data-v="ledger"]');
-    if (tab && !appEl.hidden) setTimeout(() => { tab.click(); }, 0);
-    else pendingTab = "ledger";
-  }
-  if (!appEl.hidden) toast(note);
-  else pendingNotice = note;
-  return true;
+  return out;
 }
 
-lgConnectFromHash();
-/* 앱을 켜 둔 채 링크를 눌러 해시만 바뀐 경우에도 같게 처리합니다. */
-window.addEventListener("hashchange", lgConnectFromHash);
-
-/* ── 시작: 이 탭에서 이미 열었다면 바로, 아니면 잠금 화면 ── */
+/* ── 시작: 이미 로그인했으면 가계부, 아니면 로그인 화면 ── */
 (async function init() {
-  let raw = null;
-  try { raw = sessionStorage.getItem(SKEY); } catch (e) {}
-  if (raw) {
-    try {
-      const key = await crypto.subtle.importKey("raw", b64ToBytes(raw), "AES-GCM", true, ["decrypt"]);
-      boot(await decryptWith(key));
-      return;
-    } catch (e) {
-      try { sessionStorage.removeItem(SKEY); } catch (_) {}
-    }
+  const fromLink = consumeAuthHash();
+  if (fromLink && fromLink.error) {
+    showAuth("링크를 확인하지 못했어요. 이메일과 비밀번호로 다시 로그인해 주세요.");
+    return;
   }
-  document.body.classList.add("locked");
-  $("pw").focus();
+  const s = await ensureSession();
+  if (s) { boot(); return; }
+  setMode("signin");
+  showAuth(fromLink && fromLink.ok ? "이메일 확인이 끝났어요. 이메일과 비밀번호로 로그인해 주세요." : "");
 })();

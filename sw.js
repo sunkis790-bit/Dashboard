@@ -1,11 +1,11 @@
-/* 주간 대시보드 오프라인 캐시 */
-const CACHE = "weekly-dashboard-v7";
+/* 가계부 오프라인 캐시 */
+const CACHE = "ledger-dashboard-v8";
 const ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=7",
-  "./app.js?v=7",
-  "./ledger-api.js?v=7",
+  "./styles.css?v=8",
+  "./app.js?v=8",
+  "./ledger-api.js?v=8",
   "./manifest.webmanifest",
   "./icon.svg",
   "./icon-192.png",
@@ -40,6 +40,7 @@ self.addEventListener("fetch", event => {
   if (req.method !== "GET") return;
 
   const url = new URL(req.url);
+  // Supabase(다른 출처) 요청은 캐시하지 않습니다.
   if (url.origin !== location.origin) return;
 
   // 항상 네트워크의 최신 파일을 먼저 시도하고, 실패하면 캐시로 표시합니다.

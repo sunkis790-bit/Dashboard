@@ -1,31 +1,27 @@
 /* ─────────────────────────────────────────────
-   주간 대시보드 — Supabase 연결 모듈 (가계부 ledger_entries)
+   가계부 — Supabase 연결 모듈 (가계부 ledger_entries)
 
-   ⚠️ 이 파일은 Public 저장소에 그대로 올라갑니다.
-      Supabase URL과 key를 이 파일에 적지 마세요.
-
-   접속 정보는 브라우저 localStorage에서 읽습니다.
-      키 이름: dashboard_supabase_config
-      값:     { "url": "https://xxxx.supabase.co", "key": "sb_publishable_..." }
+   URL·key·로그인 토큰은 화면 코드(app.js)가 넘겨 줍니다.
+   이 파일 자체에는 비밀 값을 적지 않습니다.
 
    테이블: public.ledger_entries
-      id (uuid, PK) · entry_date (date) · entry_type (text: expense | income)
-      category (text) · title (text) · amount (integer) · payment_method (text)
-      memo (text) · created_at (timestamptz)
+      id (uuid, PK) · user_id (uuid, 기본 auth.uid()) · entry_date (date)
+      entry_type (text: expense | income) · category (text) · title (text)
+      amount (integer) · payment_method (text) · memo (text) · created_at (timestamptz)
 
-   쓰는 법 (브라우저 개발자 도구 콘솔):
-      LedgerAPI.setConfig({ url: "https://xxxx.supabase.co", key: "sb_publishable_..." })
-      await LedgerAPI.listEntries()
+   행은 RLS로 보호됩니다. 로그인한 사용자는 자기 user_id의 행만 읽고 쓸 수 있습니다.
    ───────────────────────────────────────────── */
 (function (global) {
   "use strict";
 
-  var CONFIG_KEY = "dashboard_supabase_config";
+  var CONFIG_KEY = "ledger_supabase_base";
   var TABLE = "ledger_entries";
   var COLUMNS = ["entry_date", "entry_type", "category", "title", "amount", "payment_method", "memo"];
   var TYPES = ["expense", "income"];
 
-  /* ── 설정 ── */
+  var state = { url: "", key: "", token: "" };
+
+  /* ── 연결 정보 ── */
 
   function normalizeUrl(value) {
     if (typeof value !== "string") return "";
@@ -44,59 +40,45 @@
     return raw;
   }
 
-  function readConfig() {
-    var raw = null;
-    try { raw = global.localStorage.getItem(CONFIG_KEY); } catch (e) { return null; }
-    if (!raw) return null;
-    var cfg;
-    try { cfg = JSON.parse(raw); } catch (e) { return null; }
-    if (!cfg || typeof cfg !== "object") return null;
-    var url = normalizeUrl(cfg.url);
-    var key = typeof cfg.key === "string" ? cfg.key.trim() : "";
-    if (!url || !key) return null;
+  function configure(options) {
+    if (!options || typeof options !== "object") {
+      throw new Error("configure에는 { url, key } 객체가 필요합니다.");
+    }
+    var url = normalizeUrl(options.url);
+    var key = typeof options.key === "string" ? options.key.trim() : "";
+    if (!url) throw new Error("Supabase URL이 올바르지 않습니다. https://로 시작하는 프로젝트 URL을 넣어 주세요.");
+    if (!key) throw new Error("Supabase key가 비어 있습니다.");
+    state.url = url;
+    state.key = key;
+    try { global.localStorage.setItem(CONFIG_KEY, url); } catch (e) {}
     return { url: url, key: key };
   }
 
-  function isConfigured() {
-    return readConfig() !== null;
+  function setAccessToken(token) {
+    state.token = typeof token === "string" ? token.trim() : "";
+  }
+
+  function isReady() {
+    return !!(state.url && state.key && state.token);
   }
 
   function getConfig() {
-    return readConfig();
-  }
-
-  function setConfig(config) {
-    if (!config || typeof config !== "object") {
-      throw new Error("setConfig에는 { url, key } 객체가 필요합니다.");
-    }
-    var url = normalizeUrl(config.url);
-    var key = typeof config.key === "string" ? config.key.trim() : "";
-    if (!url) throw new Error("Supabase URL이 올바르지 않습니다. https://로 시작하는 프로젝트 URL을 넣어 주세요.");
-    if (!key) throw new Error("Supabase key가 비어 있습니다.");
-    var value = JSON.stringify({ url: url, key: key });
-    try {
-      global.localStorage.setItem(CONFIG_KEY, value);
-    } catch (e) {
-      throw new Error("이 브라우저에 설정을 저장하지 못했습니다. (localStorage 사용 불가)");
-    }
-    return { url: url, key: key };
-  }
-
-  function clearConfig() {
-    try { global.localStorage.removeItem(CONFIG_KEY); } catch (e) {}
+    return state.url ? { url: state.url, key: state.key } : null;
   }
 
   /* ── REST 요청 ── */
 
   function request(method, query, body) {
-    var cfg = readConfig();
-    if (!cfg) {
-      return Promise.reject(new Error("Supabase 설정이 없습니다. LedgerAPI.setConfig({ url, key })로 먼저 저장해 주세요."));
+    if (!state.url || !state.key) {
+      return Promise.reject(new Error("Supabase 연결 정보가 없습니다."));
     }
-    var url = cfg.url + "/rest/v1/" + TABLE + (query ? "?" + query : "");
+    if (!state.token) {
+      return Promise.reject(new Error("로그인이 필요합니다."));
+    }
+    var url = state.url + "/rest/v1/" + TABLE + (query ? "?" + query : "");
     var headers = {
-      apikey: cfg.key,
-      Authorization: "Bearer " + cfg.key,
+      apikey: state.key,
+      Authorization: "Bearer " + state.token,
       Accept: "application/json"
     };
     var init = { method: method, headers: headers, mode: "cors", cache: "no-store" };
@@ -265,10 +247,10 @@
   var LedgerAPI = {
     configKey: CONFIG_KEY,
     table: TABLE,
-    isConfigured: isConfigured,
+    configure: configure,
+    setAccessToken: function (token) { setAccessToken(token); },
+    isReady: isReady,
     getConfig: getConfig,
-    setConfig: setConfig,
-    clearConfig: clearConfig,
     listEntries: guard(listEntries),
     createEntry: guard(createEntry),
     updateEntry: guard(updateEntry),
