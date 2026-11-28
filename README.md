@@ -47,6 +47,8 @@
 
 ## 고칠 때
 
-- 파일을 고치면 `sw.js`의 `CACHE` 이름(`ledger-dashboard-v9` …)과 `index.html`·`sw.js`의
+- 파일을 고치면 `sw.js`의 `CACHE` 이름(`ledger-dashboard-v10` …)과 `index.html`·`sw.js`의
   `?v=` 숫자를 **함께** 올립니다. 그래야 기존 방문자도 새 화면을 받습니다.
+- 화면 이름: `sunkis790@gmail.com`으로 로그인하면 상단 제목이 **6남 선교회 가계부**로 바뀝니다.
+  다른 이메일이거나 로그아웃 상태면 **가계부**입니다. (`app.js`의 `TITLE_CUSTOM`·`TITLE_CUSTOM_EMAIL`)
 - Supabase 프로젝트 `Dashboard`: https://supabase.com/dashboard/project/acgenglwpzawpljpchog

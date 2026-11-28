@@ -10,6 +10,22 @@ const SB_URL = "https://acgenglwpzawpljpchog.supabase.co";
 const SB_KEY = "sb_publishable_6mtDDnrNEnit9dUI6Fgmdw_fqzFukpI";
 const SESSION_KEY = "ledger-auth-session-v1";
 
+/* ── 화면 이름: 이 이메일로 로그인하면 "6남 선교회 가계부"로 보입니다 ── */
+const TITLE_DEFAULT = "가계부";
+const TITLE_CUSTOM = "6남 선교회 가계부";
+const TITLE_CUSTOM_EMAIL = "sunkis790@gmail.com";
+
+function applyAppTitle(email) {
+  const custom = String(email || "").trim().toLowerCase() === TITLE_CUSTOM_EMAIL;
+  const title = custom ? TITLE_CUSTOM : TITLE_DEFAULT;
+  document.title = title;
+  const h = $("app-title");
+  if (h) {
+    h.textContent = title;
+    h.classList.toggle("long", custom);
+  }
+}
+
 const $ = id => document.getElementById(id);
 const nf = n => n.toLocaleString("ko-KR");
 
@@ -109,6 +125,7 @@ async function signOut() {
   if (typeof LG !== "undefined") { LG.rows = []; LG.loaded = false; LG.error = ""; }
   ["lg-list", "lg-summary", "lg-cat-wrap"].forEach(id => { const el = $(id); if (el) el.innerHTML = ""; });
   $("who").textContent = "";
+  applyAppTitle("");
   showAuth("로그아웃했어요.");
 }
 
@@ -217,6 +234,7 @@ function boot() {
   if (deferredPrompt) $("installBtn").hidden = false;
 
   $("who").textContent = (s && s.user && s.user.email) || "";
+  applyAppTitle(s && s.user && s.user.email);
   $("foot").innerHTML =
     "내역은 로그인한 계정에만 보입니다.<br>" +
     "다른 기기에서도 같은 이메일로 로그인하면 이어서 쓸 수 있어요.";
@@ -246,6 +264,7 @@ async function refreshWho() {
         try { localStorage.setItem(SESSION_KEY, JSON.stringify(cur)); } catch (e) {}
       }
       $("who").textContent = u.email;
+      applyAppTitle(u.email);
     }
   } catch (e) {}
 }
@@ -816,5 +835,6 @@ async function consumeTokenHash() {
   const s = await ensureSession();
   if (s) { boot(); return; }
   setMode("signin");
+  applyAppTitle("");
   showAuth(fromLink && fromLink.ok ? "이메일 확인이 끝났어요. 이메일과 비밀번호로 로그인해 주세요." : "");
 })();

@@ -1,11 +1,11 @@
 /* 가계부 오프라인 캐시 */
-const CACHE = "ledger-dashboard-v9";
+const CACHE = "ledger-dashboard-v10";
 const ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=9",
-  "./app.js?v=9",
-  "./ledger-api.js?v=9",
+  "./styles.css?v=10",
+  "./app.js?v=10",
+  "./ledger-api.js?v=10",
   "./manifest.webmanifest",
   "./icon.svg",
   "./icon-192.png",
